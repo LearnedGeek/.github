@@ -1,0 +1,50 @@
+name: Release Drafter (org-shared)
+
+# Reusable release-drafter workflow shared across LearnedGeek projects.
+# Caller workflows in individual repos invoke this via `workflow_call` so
+# only the per-repo release-drafter config file (.github/release-drafter.yml)
+# needs to vary — the workflow body stays in lock-step across all projects.
+#
+# Caller example (drop into the consuming repo's .github/workflows/release-drafter.yml):
+#
+#   name: Release Drafter
+#   on:
+#     push:
+#       branches: [main]
+#     pull_request:
+#       types: [opened, reopened, synchronize, edited]
+#   permissions:
+#     contents: write
+#     pull-requests: write
+#   jobs:
+#     draft:
+#       uses: LearnedGeek/.github/.github/workflows/release-drafter.yml@main
+#
+# To cut a release in a consuming repo: open Releases → edit the draft →
+# bump version → Publish. Publishing creates the git tag, which can then
+# fire whatever release.yml the consumer has defined.
+
+on:
+  workflow_call:
+    inputs:
+      config-name:
+        description: 'Config file name relative to .github/ (default release-drafter.yml)'
+        required: false
+        type: string
+        default: 'release-drafter.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  update_release_draft:
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        with:
+          config-name: ${{ inputs.config-name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
