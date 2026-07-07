@@ -1,0 +1,61 @@
+# Release Drafter configuration (LearnedGeek canonical).
+#
+# Copy this file to `.github/release-drafter.yml` in the consuming repo.
+# Keep it in lock-step with other LearnedGeek repos so the draft-release
+# notes render consistently and category/version labels have the same
+# meaning across projects.
+#
+# Labels referenced below (feature, fix, chore, docs, dependencies,
+# breaking, major, minor, patch, enhancement, bug, documentation) are
+# managed by Terraform:
+#   learnedgeek-infra/github-labels/
+# Add your repo to `var.managed_repos` in that module and `terraform apply`
+# to have the canonical set provisioned automatically.
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+# Six labels, one job each. The reviewer applies exactly one at merge
+# time; Drafter reads it and does the rest. Aliases (bug/enhancement/
+# documentation) and manual semver overrides (major/minor/patch) are
+# deliberately absent — the category label already implies the bump.
+categories:
+  - title: 'Breaking changes'
+    labels:
+      - 'breaking'
+  - title: 'Features'
+    labels:
+      - 'feature'
+  - title: 'Fixes'
+    labels:
+      - 'fix'
+  - title: 'Maintenance'
+    labels:
+      - 'chore'
+      - 'docs'
+      - 'dependencies'
+
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+  minor:
+    labels:
+      - 'feature'
+  patch:
+    labels:
+      - 'fix'
+      - 'chore'
+      - 'docs'
+      - 'dependencies'
+  default: patch

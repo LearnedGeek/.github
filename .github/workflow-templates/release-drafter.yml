@@ -1,0 +1,28 @@
+name: Release Drafter
+
+# Maintains a draft GitHub Release that accumulates merged PRs since the
+# last published release. Categorization comes from PR labels applied
+# by the reviewer at merge time (per `.github/release-drafter.yml`).
+#
+# To cut a release: Releases -> edit the draft -> bump the version
+# (e.g. v0.1.0 -> v0.2.0) -> Publish. Publishing creates the git tag,
+# which can fire whatever release.yml the repo has defined.
+#
+# The workflow body lives in LearnedGeek/.github so every LearnedGeek
+# project stays in lock-step on the drafter logic. Only the config
+# (categories, version-resolver labels) is per-repo.
+
+on:
+  push:
+    branches: [$default-branch]
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+# Caller MUST grant at least what the reusable workflow requests.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  draft:
+    uses: LearnedGeek/.github/.github/workflows/release-drafter.yml@main
