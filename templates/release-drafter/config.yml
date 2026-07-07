@@ -22,47 +22,40 @@ template: |
 
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
 
+# Six labels, one job each. The reviewer applies exactly one at merge
+# time; Drafter reads it and does the rest. Aliases (bug/enhancement/
+# documentation) and manual semver overrides (major/minor/patch) are
+# deliberately absent — the category label already implies the bump.
 categories:
+  - title: 'Breaking changes'
+    labels:
+      - 'breaking'
   - title: 'Features'
     labels:
       - 'feature'
-      - 'enhancement'
   - title: 'Fixes'
     labels:
-      - 'bug'
       - 'fix'
   - title: 'Maintenance'
     labels:
       - 'chore'
       - 'docs'
-      - 'documentation'
       - 'dependencies'
 
 change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
 change-title-escapes: '\<*_&'
 
-# Labels are applied MANUALLY by the PR reviewer at merge time, not by
-# title-prefix regex. This keeps categorization decisions out of the PR
-# author's hands (they may not know whether a change is a feature or a
-# chore) and into the reviewer's. The reviewer applies one of the
-# labels below, Drafter does the rest.
 version-resolver:
   major:
     labels:
-      - 'major'
       - 'breaking'
   minor:
     labels:
       - 'feature'
-      - 'enhancement'
-      - 'minor'
   patch:
     labels:
-      - 'bug'
       - 'fix'
       - 'chore'
       - 'docs'
-      - 'documentation'
       - 'dependencies'
-      - 'patch'
   default: patch
