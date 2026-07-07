@@ -1,0 +1,68 @@
+# Release Drafter configuration (LearnedGeek canonical).
+#
+# Copy this file to `.github/release-drafter.yml` in the consuming repo.
+# Keep it in lock-step with other LearnedGeek repos so the draft-release
+# notes render consistently and category/version labels have the same
+# meaning across projects.
+#
+# Labels referenced below (feature, fix, chore, docs, dependencies,
+# breaking, major, minor, patch, enhancement, bug, documentation) are
+# managed by Terraform:
+#   learnedgeek-infra/github-labels/
+# Add your repo to `var.managed_repos` in that module and `terraform apply`
+# to have the canonical set provisioned automatically.
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+categories:
+  - title: 'Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: 'Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+  - title: 'Maintenance'
+    labels:
+      - 'chore'
+      - 'docs'
+      - 'documentation'
+      - 'dependencies'
+
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+change-title-escapes: '\<*_&'
+
+# Labels are applied MANUALLY by the PR reviewer at merge time, not by
+# title-prefix regex. This keeps categorization decisions out of the PR
+# author's hands (they may not know whether a change is a feature or a
+# chore) and into the reviewer's. The reviewer applies one of the
+# labels below, Drafter does the rest.
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'minor'
+  patch:
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'chore'
+      - 'docs'
+      - 'documentation'
+      - 'dependencies'
+      - 'patch'
+  default: patch

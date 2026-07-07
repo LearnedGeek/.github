@@ -1,0 +1,6 @@
+{
+  "name": "Release Drafter (LearnedGeek)",
+  "description": "Drafts a GitHub Release from merged PR titles + labels, using the org's shared reusable workflow. Requires a .github/release-drafter.yml config in the consuming repo — copy from LearnedGeek/.github/templates/release-drafter/config.yml.",
+  "iconName": "octicon package",
+  "categories": ["Automation", "Deployment"]
+}
