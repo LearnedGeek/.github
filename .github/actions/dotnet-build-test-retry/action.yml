@@ -133,13 +133,23 @@ runs:
             -p:Version="${VH_VERSION}" \
             ${VH_BUILD_ARGS} \
             2>&1 | tee "${logfile}"
-          # PIPESTATUS[0] = dotnet exit code, PIPESTATUS[1] = tee exit
-          # code. Checking both means a full disk / read-only workspace
-          # that broke tee doesn't get silently reported as "build
-          # succeeded" while the log-artifact contract is violated.
-          # Copilot on PR #2 caught the tee-status-ignored gap.
-          rc=${PIPESTATUS[0]}
-          tee_rc=${PIPESTATUS[1]}
+          # PIPESTATUS gets overwritten by EVERY subsequent command
+          # (including a bare assignment), so snapshot the whole array
+          # into a local variable BEFORE reading any indices. Otherwise
+          # `rc=${PIPESTATUS[0]}` runs first, PIPESTATUS is reset to
+          # the exit code of that assignment (a single-element array),
+          # and the next line's `${PIPESTATUS[1]}` hits an unset index
+          # — which under `set -u` aborts before the retry logic ever
+          # runs. Copilot on PR #530 caught the regression I introduced
+          # with the tee-status fix on PR #2.
+          #
+          # [0] = dotnet exit code, [1] = tee exit code. Checking tee
+          # means a full-disk / read-only-workspace failure can't get
+          # silently reported as "build succeeded" while the
+          # log-artifact contract is violated.
+          statuses=("${PIPESTATUS[@]}")
+          rc=${statuses[0]}
+          tee_rc=${statuses[1]}
           set -e
           echo "::endgroup::"
 
