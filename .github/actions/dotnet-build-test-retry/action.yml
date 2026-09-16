@@ -28,11 +28,14 @@ inputs:
     default: Release
   version:
     description: >
-      Value passed to `-p:Version=` on both build and publish so the
-      compiled assemblies carry the release-tag version. Callers
-      typically compute this from `github.event.release.tag_name`
-      (release event) or a `<last-tag>-<env>-<sha7>` scheme
-      (workflow_dispatch / push).
+      Value passed to `-p:Version=` on `dotnet build` so the compiled
+      assemblies carry the release-tag version. This action does NOT
+      run `dotnet publish` — callers that need publish (framework-
+      dependent tarballs, self-contained bundles) do so themselves
+      afterward and pass the same version value to their publish step.
+      Typical caller computation: `github.event.release.tag_name`
+      minus the `v` prefix on a release event, or a
+      `<last-tag>-<env>-<sha7>` scheme on push / workflow_dispatch.
     required: true
   test-filter:
     description: >
@@ -77,15 +80,36 @@ inputs:
       own logs).
     required: false
     default: "true"
+  artifact-name-suffix:
+    description: >
+      Extra suffix appended to the uploaded log artifact name. Empty
+      by default. Set this when two or more jobs in the same workflow
+      run invoke this action — actions/upload-artifact@v4 rejects
+      duplicate artifact names within a run, so the default of
+      "<run_id>-<run_attempt>-<job>" isn't enough to distinguish
+      matrix legs. Pass e.g. matrix.os to keep matrix uploads separate.
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
     - name: Restore
+      # Inputs pass through step-scoped env vars (not `${{ ... }}`
+      # interpolation) so a caller-supplied value containing a quote,
+      # backtick, or command substitution CAN'T inject into the
+      # generated bash. Copilot on PR #2 caught this on an earlier
+      # version of the step.
       shell: bash
+      env:
+        VH_SLN: ${{ inputs.solution }}
+        VH_RESTORE_ARGS: ${{ inputs.restore-args }}
       run: |
         set -euo pipefail
-        dotnet restore "${{ inputs.solution }}" ${{ inputs.restore-args }}
+        # Word-splitting on VH_RESTORE_ARGS is intentional — callers
+        # pass extra flags as space-separated tokens. VH_SLN is quoted
+        # so paths with spaces stay one argument.
+        dotnet restore "${VH_SLN}" ${VH_RESTORE_ARGS}
 
     - name: Build (with MSB4166 retry)
       shell: bash
@@ -109,9 +133,20 @@ runs:
             -p:Version="${VH_VERSION}" \
             ${VH_BUILD_ARGS} \
             2>&1 | tee "${logfile}"
+          # PIPESTATUS[0] = dotnet exit code, PIPESTATUS[1] = tee exit
+          # code. Checking both means a full disk / read-only workspace
+          # that broke tee doesn't get silently reported as "build
+          # succeeded" while the log-artifact contract is violated.
+          # Copilot on PR #2 caught the tee-status-ignored gap.
           rc=${PIPESTATUS[0]}
+          tee_rc=${PIPESTATUS[1]}
           set -e
           echo "::endgroup::"
+
+          if [ "${tee_rc}" -ne 0 ]; then
+            echo "::error::tee failed with exit ${tee_rc} — could not capture attempt ${attempt} log. Aborting to preserve the log-artifact contract."
+            exit "${tee_rc}"
+          fi
 
           if [ "${rc}" -eq 0 ]; then
             echo "Build succeeded on attempt ${attempt}."
@@ -155,11 +190,16 @@ runs:
 
     - name: Upload build attempt logs
       # Runs even when a prior step failed so a hard build break still
-      # ships its log. Skipped when the caller opted out.
+      # ships its log. Skipped when the caller opted out. Artifact name
+      # includes github.job so multiple jobs in the same workflow run
+      # don't collide (actions/upload-artifact@v4 rejects duplicate
+      # names within a run). Callers running matrix jobs pass a
+      # matrix-leg suffix via artifact-name-suffix. Copilot on PR #2
+      # caught the collision risk.
       if: always() && inputs.upload-logs == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: build-attempt-logs-${{ github.run_id }}-${{ github.run_attempt }}
+        name: build-attempt-logs-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}${{ inputs.artifact-name-suffix && format('-{0}', inputs.artifact-name-suffix) || '' }}
         path: build-attempt-*.log
         if-no-files-found: ignore
         retention-days: 14
