@@ -83,6 +83,17 @@ jobs:
       security-events: write
       actions: read
 
+    # Refuse to execute code from fork PRs on the org's self-hosted
+    # runner. `pull_request` triggered from a fork would otherwise let
+    # an attacker put commands in .csproj build targets that run
+    # autobuild with the runner's local privileges. Same guard used by
+    # LCS's ci.yml. Push events (no fork context) and same-repo PRs
+    # (from invited collaborators only, on the private-org repo model)
+    # pass through unchanged. (Devin R5 security finding on PR 44.)
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
