@@ -57,6 +57,17 @@ on:
         required: false
         type: string
         default: ''
+      # Private org repos without GitHub Advanced Security get a 403 on
+      # the Security-tab upload step. Set to false to skip the upload and
+      # publish the SARIF as a workflow artifact instead — the analysis
+      # still runs and findings are still generated; they're just
+      # downloadable rather than integrated. Public repos and
+      # GHAS-enabled private repos should leave this true.
+      upload-results:
+        description: 'Upload SARIF to GitHub Security tab (requires GHAS on private repos)'
+        required: false
+        type: boolean
+        default: true
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -105,3 +116,19 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: '/language:${{ inputs.language }}'
+          # When upload-results is false, save SARIF locally + skip
+          # upload (avoids the "Code Security must be enabled" 403 on
+          # free-tier private repos).
+          upload: ${{ inputs.upload-results && 'always' || 'never' }}
+          output: sarif-results
+
+      - name: Upload SARIF as artifact
+        # Only runs in the artifact-only path. The action's own upload
+        # step handles the Security-tab path when upload-results is
+        # true, so no artifact is needed there.
+        if: inputs.upload-results == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ inputs.language }}-sarif
+          path: sarif-results/
+          retention-days: 30
